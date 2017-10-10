@@ -77,54 +77,24 @@
   {\normalfont \fontsize{16pt}{16pt}\selectfont}{\thesection}{1em}{}
 
 \begin{document}
-
+\begin{landscape}
 \noindent
 {\fontsize{16pt}{16pt}\selectfont \color{darkblue1}{\textbf{Multisample report}}}
 
-%\medskip
-%\noindent
-%{\lightfont {#PANEL#} | \today}
-%
+\medskip
+\noindent
+{\lightfont \today}
+
 %
 \section{QC information}
 
 {{#QCTABLE#}}
 
-%\begin{multicols}{2}
-%\noindent
-%{\color{darkblue1} \fontsize{14pt}{14pt}\selectfont Amplicon performance}\\
+\end{landscape}
+
+{{#BAD_AMPLICON_TABLE#}}
+
 %
-%\noindent
-%\lightfont
-%\rowcolors{2}{white}{gray1}
-%\begin{tabularx}{\columnwidth}{X l}
-%
-%Total reads: & \textbf{{#TOTAL_READS#}} \\
-%Aligned reads: & \textbf{{#ALIGNED_READS#}} \textbf{({#PCT_ALIGNED_READS#}\%)} \\
-%Aligned bases (on target):& \textbf{{#ALIGN_BASES_ONTARGET#}\%} \\
-%Mean coverage:& \textbf{{#COV_MEAN#}} \\
-%Threshold coverage (20\% of Mean): & \textbf{{#COV_20#}} \\
-%Coverage uniformity (\% bases covered above 20\% of Mean): & \textbf{{#COV_UNI#}}\%  \\
-%\end{tabularx}
-%
-%\columnbreak
-%
-%\noindent
-%\mediumfont
-%{\color{darkblue1} \fontsize{14pt}{14pt}\selectfont  Per amplicon coverage}\\
-%
-%\noindent
-%\lightfont
-%\rowcolors{2}{gray1}{white}
-%\begin{tabularx}{\columnwidth}{X l}
-%
-%No. of amplicons:& \textbf{{{#ALL_AMPLICONS#}}} \\
-%No. of amplicons with 100\% coverage:& \textbf{{#COVERED_AMPLICONS#} ({#PCT_COV#}\%)} \\
-%\end{tabularx}
-%\end{multicols}
-%
-%
-%{#BAD_AMPLICON_TABLE#}
 %
 %\newpage
 %\newgeometry{left=1.23cm, bottom=1.57cm, right=1.27cm, top=3.74cm}
