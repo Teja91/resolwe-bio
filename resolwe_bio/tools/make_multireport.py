@@ -99,6 +99,26 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False):
     lines.append('{\n\\addtocounter{table}{-1}}')
     return '\n'.join(lines)
 
+def snp_href(snpid):
+    """Create LaTeX hyperlink for given SNP ID."""
+    if snpid.startswith('rs'):
+        url = 'http://www.ncbi.nlm.nih.gov/snp/?term={}'.format(snpid)
+        pass
+    elif snpid.startswith('COSM'):
+        url = 'http://grch37-cancer.sanger.ac.uk/cosmic/mutation/overview?id={}'.format(snpid.lstrip('COSM'))
+    elif snpid.startswith('COSN'):
+        url = 'http://cancer.sanger.ac.uk/cosmic/ncv/overview?id={}'.format(snpid.lstrip('COSN'))
+    else:
+        return snpid
+    return '\\href{{{}}}{{{}}}'.format(url, snpid)
+
+
+def gene_href(gene_name):
+    """Create LaTeX hyperlink for given GENE ID."""
+    url = 'http://www.ncbi.nlm.nih.gov/gene/?term={}'.format(gene_name)
+    return '\\href{{{}}}{{{}}}'.format(url, gene_name)
+
+
 
 def parse_target_pcr_metrics(metrics_report):
     """Parse CollectTargetedPcrMetrics report file."""
@@ -177,18 +197,55 @@ if __name__ == '__main__':
         #Make Amplicons with coverage < 100% table
 
         cols=['Sample', 'Amplicon', '\% Covered', 'Less than 20\% of mean']
-
         not_covered=[]
         for i in indexlist:
             not_covered=not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]), '{:.1f}'.format(float(line[8]) * 100), '0') for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
-
         if not_covered==[]:
             not_covered=[['/', '/']]
 
         table_text=list_to_tex_table(not_covered, header=cols)
-
         template = template.replace('{#BAD_AMPLICON_TABLE#}', table_text)
 
+        #Make VCF GATKHC
+        table_text=''
+        header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID']
+
+        for i in indexlist:
+            #GATKHC:
+            vcf_table_1, common_columns_1 = _tsv_to_list(args.vcfgatkhc[i], has_header=True, pick_columns=header)
+
+            # Escape user inputs:
+            common_columns_1 = [_escape_latex(name) for name in common_columns_1]
+            ##########caption = _escape_latex(vcf_table_name(vcf_file))
+            vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
+
+            # Insert space between SNP ID's and create hypelinks:
+            vcf_table_1 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_1]
+
+            # Create gene hypelinks:
+            vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
+
+            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption='caption', long_columns=[2, 3, -1])
+            table_text += '\n\\newpage\n'
+
+            #LF:
+            vcf_table_2, common_columns_2 = _tsv_to_list(args.vcflf[i], has_header=True, pick_columns=header)
+
+            # Escape user inputs:
+            common_columns_2 = [_escape_latex(name) for name in common_columns_2]
+            ########caption = _escape_latex(vcf_table_name(vcf_file))
+            vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
+
+            # Insert space between SNP ID's and create hypelinks:
+            vcf_table_2 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_2]
+
+            # Create gene hypelinks:
+            vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
+
+            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption='caption', long_columns=[2, 3, -1])
+            table_text += '\n\\newpage\n'
+
+        template = template.replace('{#VCF_TABLES#}', table_text)
         
         # Write template to 'report.tex'
         template_out.write(template)
