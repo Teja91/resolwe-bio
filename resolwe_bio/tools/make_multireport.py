@@ -4,7 +4,7 @@
 import subprocess
 import argparse
 
-DECIMALS=2
+DECIMALS = 2
 
 parser = argparse.ArgumentParser(description="Fill data into tex template file.")
 parser.add_argument('--sample', help="Sample name.", nargs='+')
@@ -152,16 +152,16 @@ def parse_cov(cov_file_name):
 
 def samplelist_to_string(samplelist):
     """Converts list of lists to a string, suitable for shared variants tables."""
-    samples=[]
+    samples = []
     for item in samplelist:
         samples.append(item[0]+' ('+item[1]+')')
     return ', '.join(samples)
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    
+
     #Make a index list of sorted sample names (alphabetical order)
-    indexlist=[i[0] for i in sorted(enumerate(args.sample), key=lambda x:x[1])]
+    indexlist = [i[0] for i in sorted(enumerate(args.sample), key=lambda x: x[1])]
 
     # Open template and fill it with data:
     with open(args.template, 'r') as template_in, open('multireport.tex', 'wt') as template_out:
@@ -169,43 +169,48 @@ if __name__ == '__main__':
         template = template.replace('{#LOGO#}', args.logo)
 
         #create dict with metrics & coverage data
-        d={}
+        d = {}
         for i in range(len(args.sample)):
-            d[args.sample[i]]=parse_target_pcr_metrics(args.metrics[i])
-            d[args.sample[i]]['cov_data'], d[args.sample[i]]['mean_coverage'], d[args.sample[i]]['mean20'], d[args.sample[i]]['cov_unif']=parse_covmetrics(args.covmetrics[i])
+            d[args.sample[i]] = parse_target_pcr_metrics(args.metrics[i])
+            d[args.sample[i]]['cov_data'], d[args.sample[i]]['mean_coverage'], d[args.sample[i]]['mean20'], d[args.sample[i]]['cov_unif'] = parse_covmetrics(args.covmetrics[i])
 
             #read .cov file
-            d[args.sample[i]]['cov_list'], d[args.sample[i]]['amp_numb'], d[args.sample[i]]['covered_amplicons']=parse_cov(args.cov[i]) 
-        
+            d[args.sample[i]]['cov_list'], d[args.sample[i]]['amp_numb'], d[args.sample[i]]['covered_amplicons'] = parse_cov(args.cov[i])
+
         #make QC information table
-        QCheader=['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads', 'Aligned \\linebreak bases', 'Mean \\linebreak coverage', 'Threshold coverage', 'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100 coverage']
-        lines=[]
+        qc_header = ['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads',
+                     'Aligned \\linebreak bases', 'Mean \\linebreak coverage', 'Threshold coverage',
+                     'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100 coverage']
+        lines = []
         for i in indexlist:
             pct_aligned_reads = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_PF_UQ_READS_ALIGNED']) * 100, DECIMALS)))
             pct_amplified_bases = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_AMPLIFIED_BASES']) * 100, DECIMALS)))
-        
-            lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads, pct_amplified_bases, str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)), str(round(d[args.sample[i]]['mean20'], DECIMALS)),str(round(d[args.sample[i]]['cov_unif'], DECIMALS)), str(len(d[args.sample[i]]['cov_list'])), str(d[args.sample[i]]['covered_amplicons'])])
 
-        QCinfo=list_to_tex_table(lines, header=QCheader, long_columns=[1, 2, 3, 4, 5, 6, 7, 8], caption='QC information')
-        template=template.replace('{#QCTABLE#}', QCinfo)
+            lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads,
+                          pct_amplified_bases, str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)),
+                          str(round(d[args.sample[i]]['mean20'], DECIMALS)), str(round(d[args.sample[i]]['cov_unif'], DECIMALS)),
+                          str(len(d[args.sample[i]]['cov_list'])), str(d[args.sample[i]]['covered_amplicons'])])
+
+        qc_info = list_to_tex_table(lines, header=qc_header, long_columns=[1, 2, 3, 4, 5, 6, 7, 8], caption='QC information')
+        template = template.replace('{#QCTABLE#}', qc_info)
 
         #Make Amplicons with coverage < 100% table
 
-        cols=['Sample', 'Amplicon', '\% Covered', 'Less than 20\% of mean']
-        not_covered=[]
+        cols = ['Sample', 'Amplicon', '\% Covered', 'Less than 20\% of mean']
+        not_covered = []
         for i in indexlist:
-            not_covered=not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]), '{:.1f}'.format(float(line[8]) * 100), '0') for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
-        if not_covered==[]:
-            not_covered=[['/', '/']]
+            not_covered = not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]), '{:.1f}'.format(float(line[8]) * 100), '0') for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
+        if not_covered == []:
+            not_covered = [['/', '/']]
 
-        table_text=list_to_tex_table(not_covered, header=cols, caption='Amplicons with coverage < 100\\%')
+        table_text = list_to_tex_table(not_covered, header=cols, caption='Amplicons with coverage < 100\\%')
         template = template.replace('{#BAD_AMPLICON_TABLE#}', table_text)
 
         #Parse VCF files to get variant tables and dictionaries in the form {variant: samples}
-        table_text=''
-        gatkhc_variants={}
-        lf_variants={}
-        
+        table_text = ''
+        gatkhc_variants = {}
+        lf_variants = {}
+
         header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID']
 
         for i in indexlist:
@@ -222,10 +227,10 @@ if __name__ == '__main__':
 
             #Create dict of shared variants
             for line in vcf_table_1:
-                variant=line[-2]+'_chr'+line[0]+'_'+line[1]
+                variant = line[-2]+'_chr'+line[0]+'_'+line[1]
                 if variant in gatkhc_variants.keys():
                     gatkhc_variants[variant].append([args.sample[i], line[4]])
-                else: gatkhc_variants[variant]=[[args.sample[i], line[4]]]
+                else: gatkhc_variants[variant] = [[args.sample[i], line[4]]]
 
             #Create gene hypelinks:
             vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
@@ -247,10 +252,10 @@ if __name__ == '__main__':
 
             #Create dict of shared variants
             for line in vcf_table_2:
-                variant=line[-2]+'_chr'+line[0]+'_'+line[1]
+                variant = line[-2]+'_chr'+line[0]+'_'+line[1]
                 if variant in lf_variants.keys():
                     lf_variants[variant].append([args.sample[i], line[4]])
-                else: lf_variants[variant]=[[args.sample[i], line[4]]]
+                else: lf_variants[variant] = [[args.sample[i], line[4]]]
 
             # Create gene hypelinks:
             vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
@@ -259,22 +264,24 @@ if __name__ == '__main__':
             table_text += '\n\\newpage\n'
 
         #Create shared variants tables
-        header_shared=['Variant ID', 'Samples sharing this variant (allele frequence)']
-        data_gatkhc=[]
+        header_shared = ['Variant ID', 'Samples sharing this variant (allele frequence)']
+        data_gatkhc = []
         for k, v in gatkhc_variants.items():
-            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])   
-        gatkhc_shared=list_to_tex_table(data_gatkhc, header=header_shared, caption='Shared GATK HaplotypeCaller variants across all samples')
+            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
+            caption = 'Shared GATK HaplotypeCaller variants across all samples'
+        gatkhc_shared = list_to_tex_table(data_gatkhc, header=header_shared, caption=caption)
 
-        data_lf=[]
+        data_lf = []
         for k, v in lf_variants.items():
             data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
-        lf_shared=list_to_tex_table(data_lf, header=header_shared, caption='Shared Lowfreq variants across all samples')
+            caption = 'Shared Lowfreq variants across all samples'
+        lf_shared = list_to_tex_table(data_lf, header=header_shared, caption=caption)
 
         template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
         template = template.replace('{#LF_SHARED#}', lf_shared)
 
         template = template.replace('{#VCF_TABLES#}', table_text)
-        
+
         # Write template to 'report.tex'
         template_out.write(template)
 
