@@ -154,7 +154,7 @@ def samplelist_to_string(samplelist):
     """Converts list of lists to a string, suitable for shared variants tables."""
     samples = []
     for item in samplelist:
-        samples.append(item[0]+' ('+item[1]+')')
+        samples.append(item[0]+' ('+str(round(float(item[1]), 3))+')')
     return ', '.join(samples)
 
 if __name__ == '__main__':
