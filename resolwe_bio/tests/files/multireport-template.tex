@@ -1,4 +1,4 @@
-\documentclass[11pt]{article}
+\documentclass[11pt, a4paper, landscape]{article}
 
 % Graphics, plotting, images:
 \usepackage{graphicx}
@@ -21,8 +21,6 @@
 %\fancyhead[RE,RO]{ \nouppercase{\leftmark\ | Page \thepage\ of \pageref{LastPage}}\\\hrulefill\\ {\lightfont \fontsize{10pt}{10pt}\selectfont {#SAMPLE_NAME#} | {#PANEL#} | \today}}
 \fancyhead[RE,RO]{ \nouppercase{\leftmark\ | Page \thepage\ of \pageref{LastPage}}\\\hrulefill\\ {\lightfont \fontsize{10pt}{10pt}\selectfont SAMPLENAME | PANEL | \today}}
 
-% Make only a subset of pages in landscape mode
-\usepackage{pdflscape}
 
 % tables spanning multiple pages
 \usepackage{longtable}
@@ -77,7 +75,7 @@
   {\normalfont \fontsize{16pt}{16pt}\selectfont}{\thesection}{1em}{}
 
 \begin{document}
-\begin{landscape}
+
 \noindent
 {\fontsize{16pt}{16pt}\selectfont \color{darkblue1}{\textbf{Multisample report}}}
 
@@ -91,23 +89,23 @@
 \footnotesize
 {{#QCTABLE#}}
 
-\end{landscape}
 
 \normalsize
 {{#BAD_AMPLICON_TABLE#}}
 
-\begin{landscape}
+\newpage
+\section{Shared variants across all samples}
 
 {{#GATKHC_SHARED#}}
 
 {{#LF_SHARED#}}
 
+\newpage
 \renewcommand{\arraystretch}{1.4}
 \section{Annotated variants}
 \footnotesize
 {{#VCF_TABLES#}}
 
-\end{landscape}
 %
 %
 %\newpage

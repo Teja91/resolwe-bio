@@ -112,13 +112,10 @@ def snp_href(snpid):
         return snpid
     return '\\href{{{}}}{{{}}}'.format(url, snpid)
 
-
 def gene_href(gene_name):
     """Create LaTeX hyperlink for given GENE ID."""
     url = 'http://www.ncbi.nlm.nih.gov/gene/?term={}'.format(gene_name)
     return '\\href{{{}}}{{{}}}'.format(url, gene_name)
-
-
 
 def parse_target_pcr_metrics(metrics_report):
     """Parse CollectTargetedPcrMetrics report file."""
@@ -146,22 +143,15 @@ def parse_covmetrics(covmetrics_report):
         cov_unif = float(cov_data[2])
         return cov_data, mean_coverage, mean20, cov_unif
 
-def vcf_table_name(vcf_file_name):
-    """Format VCF table caption."""
-    if 'gatkhc.finalvars' in vcf_file_name.lower():
-        return 'GATK HaplotypeCaller variant calls'
-    elif 'lf.finalvars' in vcf_file_name.lower():
-        return 'Lofreq variant calls'
-    else:
-        return os.path.basename(vcf_file_name)
-
 def parse_cov(cov_file_name):
+    """Parse *.cov file."""
     cov_list, _ = _tsv_to_list(cov_file_name)
     amp_numb = list(range(len(cov_list)))
     covered_amplicons = len([1 for line in cov_list if float(line[8]) >= 1])
     return cov_list, amp_numb, covered_amplicons
 
 def samplelist_to_string(samplelist):
+    """Converts list of lists to a string, suitable for shared variants tables."""
     samples=[]
     for item in samplelist:
         samples.append(item[0]+' ('+item[1]+')')
@@ -188,7 +178,7 @@ if __name__ == '__main__':
             d[args.sample[i]]['cov_list'], d[args.sample[i]]['amp_numb'], d[args.sample[i]]['covered_amplicons']=parse_cov(args.cov[i]) 
         
         #make QC information table
-        QCheader=['Sample name', 'Total reads', 'Aligned reads', 'Aligned bases', 'Mean coverage', 'Threshold coverage', 'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100 coverage']
+        QCheader=['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads', 'Aligned \\linebreak bases', 'Mean \\linebreak coverage', 'Threshold coverage', 'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100 coverage']
         lines=[]
         for i in indexlist:
             pct_aligned_reads = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_PF_UQ_READS_ALIGNED']) * 100, DECIMALS)))
@@ -196,8 +186,7 @@ if __name__ == '__main__':
         
             lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads, pct_amplified_bases, str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)), str(round(d[args.sample[i]]['mean20'], DECIMALS)),str(round(d[args.sample[i]]['cov_unif'], DECIMALS)), str(len(d[args.sample[i]]['cov_list'])), str(d[args.sample[i]]['covered_amplicons'])])
 
-        QCinfo=list_to_tex_table(lines, header=QCheader, long_columns=[1, 2, 3, 4, 5, 6, 7, 8])
-
+        QCinfo=list_to_tex_table(lines, header=QCheader, long_columns=[1, 2, 3, 4, 5, 6, 7, 8], caption='QC information')
         template=template.replace('{#QCTABLE#}', QCinfo)
 
         #Make Amplicons with coverage < 100% table
@@ -209,10 +198,10 @@ if __name__ == '__main__':
         if not_covered==[]:
             not_covered=[['/', '/']]
 
-        table_text=list_to_tex_table(not_covered, header=cols)
+        table_text=list_to_tex_table(not_covered, header=cols, caption='Amplicons with coverage < 100\\%')
         template = template.replace('{#BAD_AMPLICON_TABLE#}', table_text)
 
-        #Make VCF GATKHC
+        #Parse VCF files to get variant tables and dictionaries in the form {variant: samples}
         table_text=''
         gatkhc_variants={}
         lf_variants={}
@@ -225,7 +214,7 @@ if __name__ == '__main__':
 
             # Escape user inputs:
             common_columns_1 = [_escape_latex(name) for name in common_columns_1]
-            ##########caption = _escape_latex(vcf_table_name(vcf_file))
+            caption = _escape_latex('GATK HaplotypeCaller variant calls, sample '+args.sample[i])
             vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
 
             # Insert space between SNP ID's and create hypelinks:
@@ -238,12 +227,11 @@ if __name__ == '__main__':
                     gatkhc_variants[variant].append([args.sample[i], line[4]])
                 else: gatkhc_variants[variant]=[[args.sample[i], line[4]]]
 
-            # Create gene hypelinks:
+            #Create gene hypelinks:
             vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
 
-            
-
-            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption='caption', long_columns=[2, 3, -1])
+            #Add text to table
+            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
 
             #LF:
@@ -251,7 +239,7 @@ if __name__ == '__main__':
 
             # Escape user inputs:
             common_columns_2 = [_escape_latex(name) for name in common_columns_2]
-            ########caption = _escape_latex(vcf_table_name(vcf_file))
+            caption = _escape_latex('Lofreq variant calls, sample '+args.sample[i])
             vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
 
             # Insert space between SNP ID's and create hypelinks:
@@ -267,20 +255,20 @@ if __name__ == '__main__':
             # Create gene hypelinks:
             vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
 
-            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption='caption', long_columns=[2, 3, -1])
+            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
 
         #Create shared variants tables
         header_shared=['Variant ID', 'Samples sharing this variant (allele frequence)']
         data_gatkhc=[]
         for k, v in gatkhc_variants.items():
-            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
-        gatkhc_shared=list_to_tex_table(data_gatkhc, header=header_shared)
+            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])   
+        gatkhc_shared=list_to_tex_table(data_gatkhc, header=header_shared, caption='Shared GATK HaplotypeCaller variants across all samples')
 
         data_lf=[]
         for k, v in lf_variants.items():
             data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
-        lf_shared=list_to_tex_table(data_lf, header=header_shared)
+        lf_shared=list_to_tex_table(data_lf, header=header_shared, caption='Shared Lowfreq variants across all samples')
 
         template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
         template = template.replace('{#LF_SHARED#}', lf_shared)
