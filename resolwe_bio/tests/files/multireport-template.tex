@@ -88,17 +88,24 @@
 %
 \section{QC information}
 
+\footnotesize
 {{#QCTABLE#}}
 
 \end{landscape}
 
+\normalsize
 {{#BAD_AMPLICON_TABLE#}}
 
 \begin{landscape}
+
+{{#GATKHC_SHARED#}}
+
+{{#LF_SHARED#}}
+
 \renewcommand{\arraystretch}{1.4}
 \section{Annotated variants}
 \footnotesize
-{#VCF_TABLES#}
+{{#VCF_TABLES#}}
 
 \end{landscape}
 %

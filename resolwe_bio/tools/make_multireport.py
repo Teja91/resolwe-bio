@@ -161,6 +161,12 @@ def parse_cov(cov_file_name):
     covered_amplicons = len([1 for line in cov_list if float(line[8]) >= 1])
     return cov_list, amp_numb, covered_amplicons
 
+def samplelist_to_string(samplelist):
+    samples=[]
+    for item in samplelist:
+        samples.append(item[0]+' ('+item[1]+')')
+    return ', '.join(samples)
+
 if __name__ == '__main__':
     args = parser.parse_args()
     
@@ -208,6 +214,9 @@ if __name__ == '__main__':
 
         #Make VCF GATKHC
         table_text=''
+        gatkhc_variants={}
+        lf_variants={}
+        
         header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID']
 
         for i in indexlist:
@@ -222,8 +231,17 @@ if __name__ == '__main__':
             # Insert space between SNP ID's and create hypelinks:
             vcf_table_1 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_1]
 
+            #Create dict of shared variants
+            for line in vcf_table_1:
+                variant=line[-2]+'_chr'+line[0]+'_'+line[1]
+                if variant in gatkhc_variants.keys():
+                    gatkhc_variants[variant].append([args.sample[i], line[4]])
+                else: gatkhc_variants[variant]=[[args.sample[i], line[4]]]
+
             # Create gene hypelinks:
             vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
+
+            
 
             table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption='caption', long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
@@ -239,11 +257,33 @@ if __name__ == '__main__':
             # Insert space between SNP ID's and create hypelinks:
             vcf_table_2 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_2]
 
+            #Create dict of shared variants
+            for line in vcf_table_2:
+                variant=line[-2]+'_chr'+line[0]+'_'+line[1]
+                if variant in lf_variants.keys():
+                    lf_variants[variant].append([args.sample[i], line[4]])
+                else: lf_variants[variant]=[[args.sample[i], line[4]]]
+
             # Create gene hypelinks:
             vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
 
             table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption='caption', long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
+
+        #Create shared variants tables
+        header_shared=['Variant ID', 'Samples sharing this variant (allele frequence)']
+        data_gatkhc=[]
+        for k, v in gatkhc_variants.items():
+            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
+        gatkhc_shared=list_to_tex_table(data_gatkhc, header=header_shared)
+
+        data_lf=[]
+        for k, v in lf_variants.items():
+            data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
+        lf_shared=list_to_tex_table(data_lf, header=header_shared)
+
+        template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
+        template = template.replace('{#LF_SHARED#}', lf_shared)
 
         template = template.replace('{#VCF_TABLES#}', table_text)
         
