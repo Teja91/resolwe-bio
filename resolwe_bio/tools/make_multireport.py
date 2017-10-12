@@ -8,13 +8,13 @@ DECIMALS = 2
 
 parser = argparse.ArgumentParser(description="Fill data into tex template file.")
 parser.add_argument('--sample', help="Sample name.", nargs='+')
-parser.add_argument('--panel', help="Panel name", nargs='+')
 parser.add_argument('--covplot', help="Coverage plot.", nargs='+')
 parser.add_argument('--covmetrics', help="Coverge metrics", nargs='+')
 parser.add_argument('--cov', help="Amplicon coverage", nargs='+')
 parser.add_argument('--metrics', help="CollectTargetedPcrMetrics report file.", nargs='+')
 parser.add_argument('--vcfgatkhc', help="File with VCF GATK HaplotypeCaller data.", nargs='+')
 parser.add_argument('--vcflf', help="File with VCF Lofreq data.", nargs='+')
+parser.add_argument('--meancov', help="Mean amplicon coverage.", nargs='+')
 parser.add_argument('--template', help="Report template file.")
 parser.add_argument('--logo', help="Logo.")
 
@@ -67,13 +67,16 @@ def cut_to_pieces(string, piece_size):
     pieces.append(string)
     return ' '.join(pieces)
 
-def list_to_tex_table(data, header=None, caption=None, long_columns=False):
+def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_columns=False):
     """Make a TeX table from python list."""
     lines = []
     column_alingnment = ['l' for h in header]
     if long_columns:
         for col_index in long_columns:
             column_alingnment[col_index] = 'L'
+    if wide_columns:
+        for col_index in wide_columns:
+            column_alingnment[col_index] = 'W'
 
     if caption:
         lines.append('\\captionof{{table}}{{{}}}'.format(caption))
@@ -92,6 +95,10 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False):
                 # If hyperlink line, don't do a thing. Otherwise, insert spaces, so that wrapping can happen:
                 new_val = line[col_index] if '\href' in line[col_index] else cut_to_pieces(line[col_index], 8)
                 line[col_index] = '\\multicolumn{{1}}{{m{{2.3cm}}}}{{{}}}'.format(new_val)
+        if wide_columns:
+            for col_index in wide_columns:
+                line[col_index] = '\\multicolumn{{1}}{{m{{18cm}}}}{{{}}}'.format(line[col_index])
+
 
         lines.append(' & '.join(line) + ' \\\\')
 
@@ -150,12 +157,28 @@ def parse_cov(cov_file_name):
     covered_amplicons = len([1 for line in cov_list if float(line[8]) >= 1])
     return cov_list, amp_numb, covered_amplicons
 
+def parse_mean_covd(covd_file_name):
+    """Parse *.covd file."""
+    covd_list, _ = _tsv_to_list(covd_file_name)
+    mean_amp_cov = {}
+    for line in covd_list:
+        mean_amp_cov[line[0]] = line[1]
+    return mean_amp_cov
+
 def samplelist_to_string(samplelist):
     """Converts list of lists to a string, suitable for shared variants tables."""
     samples = []
     for item in samplelist:
         samples.append(item[0]+' ('+str(round(float(item[1]), 3))+')')
     return ', '.join(samples)
+
+def produce_warning(coverage, mean_20):
+    """Produces a string with warning if coverage is less than 20% of mean."""
+    if coverage < mean_20:
+        return '\\textcolor{red}{YES}'
+    else:
+        return ' '
+    
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -180,15 +203,15 @@ if __name__ == '__main__':
         #make QC information table
         qc_header = ['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads',
                      'Aligned \\linebreak bases', 'Mean \\linebreak coverage', 'Threshold coverage',
-                     'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100 coverage']
+                     'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100\\% coverage']
         lines = []
         for i in indexlist:
             pct_aligned_reads = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_PF_UQ_READS_ALIGNED']) * 100, DECIMALS)))
             pct_amplified_bases = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_AMPLIFIED_BASES']) * 100, DECIMALS)))
 
-            lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads,
-                          pct_amplified_bases, str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)),
-                          str(round(d[args.sample[i]]['mean20'], DECIMALS)), str(round(d[args.sample[i]]['cov_unif'], DECIMALS)),
+            lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads+'\\%',
+                          pct_amplified_bases+'\\%', str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)),
+                          str(round(d[args.sample[i]]['mean20'], DECIMALS)), str(round(d[args.sample[i]]['cov_unif'], DECIMALS))+'\\%',
                           str(len(d[args.sample[i]]['cov_list'])), str(d[args.sample[i]]['covered_amplicons'])])
 
         qc_info = list_to_tex_table(lines, header=qc_header, long_columns=[1, 2, 3, 4, 5, 6, 7, 8], caption='QC information')
@@ -196,10 +219,15 @@ if __name__ == '__main__':
 
         #Make Amplicons with coverage < 100% table
 
+        
+
         cols = ['Sample', 'Amplicon', '\% Covered', 'Less than 20\% of mean']
         not_covered = []
         for i in indexlist:
-            not_covered = not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]), '{:.1f}'.format(float(line[8]) * 100), '0') for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
+            amp_cov=parse_mean_covd(args.meancov[i])
+            not_covered = not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]),
+                                        '{:.1f}'.format(float(line[8]) * 100), produce_warning(float(amp_cov[line[4]]), d[args.sample[i]]['mean20']))
+                                        for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
         if not_covered == []:
             not_covered = [['/', '/']]
 
@@ -236,7 +264,9 @@ if __name__ == '__main__':
             vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
 
             #Add text to table
+            table_text += '\\renewcommand{\\thetable}{\\arabic{table}a}'
             table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -1])
+            table_text += '{\n\\addtocounter{table}{-1}}'
             table_text += '\n\\newpage\n'
 
             #LF:
@@ -260,8 +290,10 @@ if __name__ == '__main__':
             # Create gene hypelinks:
             vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
 
+            table_text += '\\renewcommand{\\thetable}{\\arabic{table}b}'
             table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
+        table_text += '\\renewcommand{\\thetable}{\\arabic{table}}'
 
         #Create shared variants tables
         header_shared = ['Variant ID', 'Samples sharing this variant (allele frequence)']
@@ -269,13 +301,13 @@ if __name__ == '__main__':
         for k, v in gatkhc_variants.items():
             data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
             caption = 'Shared GATK HaplotypeCaller variants across all samples'
-        gatkhc_shared = list_to_tex_table(data_gatkhc, header=header_shared, caption=caption)
+        gatkhc_shared = list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
 
         data_lf = []
         for k, v in lf_variants.items():
             data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
             caption = 'Shared Lowfreq variants across all samples'
-        lf_shared = list_to_tex_table(data_lf, header=header_shared, caption=caption)
+        lf_shared = list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])
 
         template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
         template = template.replace('{#LF_SHARED#}', lf_shared)
