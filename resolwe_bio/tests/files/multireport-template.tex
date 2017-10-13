@@ -19,7 +19,7 @@
 \fancyhead[LE,LO]{\includegraphics[width=35mm]{{#LOGO#}}\\\hrulefill\\~}
 \fancyhead[CE,CO]{~\\\hrulefill\\~}
 %\fancyhead[RE,RO]{ \nouppercase{\leftmark\ | Page \thepage\ of \pageref{LastPage}}\\\hrulefill\\ {\lightfont \fontsize{10pt}{10pt}\selectfont {#SAMPLE_NAME#} | {#PANEL#} | \today}}
-\fancyhead[RE,RO]{ \nouppercase{\leftmark\ | Page \thepage\ of \pageref{LastPage}}\\\hrulefill\\ {\lightfont \fontsize{10pt}{10pt}\selectfont SAMPLENAME | PANEL | \today}}
+\fancyhead[RE,RO]{ \nouppercase{\leftmark\ | Page \thepage\ of \pageref{LastPage}}\\\hrulefill\\ {\lightfont \fontsize{10pt}{10pt}\selectfont \today}}
 
 
 % tables spanning multiple pages
@@ -78,13 +78,12 @@
 \begin{document}
 
 \noindent
-{\fontsize{16pt}{16pt}\selectfont \color{darkblue1}{\textbf{Multisample report}}}
+{\fontsize{16pt}{16pt}\selectfont \color{darkblue1}{\textbf{Multi-sample Report}}}
 
 \medskip
 \noindent
 {\lightfont \today}
 
-%
 \section{QC information}
 
 \footnotesize
@@ -128,34 +127,6 @@ DP4 & Number of 1) forward ref alleles; 2) reverse ref; 3) forward non-ref; 4) r
 \addtocounter{table}{-1}}}
 
 {{#VCF_TABLES#}}
-
-%
-%
-%\newpage
-%\newgeometry{left=1.23cm, bottom=1.57cm, right=1.27cm, top=3.74cm}
-%\setlength{\headsep}{1cm}
-%
-%\begin{landscape}
-%{\color{darkblue1} \fontsize{14pt}{14pt}\selectfont Per amplicon average coverage}
-%\begin{figure}[h]
-%    \centering
-%    \includegraphics[width=0.99\textwidth]{{#IMAGE2#}}
-%    \caption{Average coverage (average number of sequencing reads
-%    covering amplicon bases) is plotted for
-%    each of the tested amplicons. Coverage at the 5\%, 10\%, 20\% and 5x of the mean sample coverage
-%    is marked with the horizontal lines.}
-%\end{figure}
-%\end{landscape}
-%
-%\newpage
-%\newgeometry{left=1.23cm, bottom=1.01cm, right=1.27cm, top=3.74cm}
-%\setlength{\headsep}{0.5cm}
-%
-%\begin{landscape}
-
-%\end{landscape}
-
-
 
 
 \end{document}

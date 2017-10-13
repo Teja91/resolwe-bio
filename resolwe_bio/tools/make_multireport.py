@@ -178,7 +178,7 @@ def produce_warning(coverage, mean_20):
         return '\\textcolor{red}{YES}'
     else:
         return ' '
-    
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -219,15 +219,13 @@ if __name__ == '__main__':
 
         #Make Amplicons with coverage < 100% table
 
-        
-
         cols = ['Sample', 'Amplicon', '\% Covered', 'Less than 20\% of mean']
         not_covered = []
         for i in indexlist:
-            amp_cov=parse_mean_covd(args.meancov[i])
+            amp_cov = parse_mean_covd(args.meancov[i])
             not_covered = not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]),
                                         '{:.1f}'.format(float(line[8]) * 100), produce_warning(float(amp_cov[line[4]]), d[args.sample[i]]['mean20']))
-                                        for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
+                                       for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
         if not_covered == []:
             not_covered = [['/', '/']]
 
@@ -263,8 +261,9 @@ if __name__ == '__main__':
             #Create gene hypelinks:
             vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
 
-            #Add text to table
+            #Set different table counting (Na):
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}a}'
+            #Add table text:
             table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -1])
             table_text += '{\n\\addtocounter{table}{-1}}'
             table_text += '\n\\newpage\n'
@@ -290,24 +289,38 @@ if __name__ == '__main__':
             # Create gene hypelinks:
             vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
 
+            #Set different table counting (Nb)
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}b}'
             table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -1])
             table_text += '\n\\newpage\n'
+        #Set table counter back to normal (N) for further tables
         table_text += '\\renewcommand{\\thetable}{\\arabic{table}}'
 
         #Create shared variants tables
         header_shared = ['Variant ID', 'Samples sharing this variant (allele frequence)']
         data_gatkhc = []
-        for k, v in gatkhc_variants.items():
-            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
+
+        #Sort data by number of samples sharing the variant
+        gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: len(gatkhc_variants[k]), reverse=True)
+        for k in gatkhc_sorted:
+            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(gatkhc_variants[k]))])
             caption = 'Shared GATK HaplotypeCaller variants across all samples'
-        gatkhc_shared = list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
+        #Set table counting and add table text
+        gatkhc_shared = '\\renewcommand{\\thetable}{\\arabic{table}a}\n'
+        gatkhc_shared += list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
+        gatkhc_shared += '{\n\\addtocounter{table}{-1}}'
 
         data_lf = []
-        for k, v in lf_variants.items():
-            data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(v))])
+
+        #Sort data by number of samples sharing the variant
+        lf_sorted = sorted(lf_variants, key=lambda k: len(lf_variants[k]), reverse=True)
+        for k in lf_sorted:
+            data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(lf_variants[k]))])
             caption = 'Shared Lowfreq variants across all samples'
-        lf_shared = list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])
+        #Set table counting and add table text
+        lf_shared = '\n\\renewcommand{\\thetable}{\\arabic{table}b}'
+        lf_shared += list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])
+        gatkhc_shared += '\n\\renewcommand{\\thetable}{\\arabic{table}}'
 
         template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
         template = template.replace('{#LF_SHARED#}', lf_shared)
