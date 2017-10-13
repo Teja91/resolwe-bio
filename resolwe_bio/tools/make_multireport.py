@@ -3,6 +3,9 @@
 
 import subprocess
 import argparse
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn
 
 DECIMALS = 2
 
@@ -36,6 +39,13 @@ def _remove_underscore(string):
     """Remove underscore from the LaTeX compliant string and replaces it with white space."""
     return string.replace('\_', ' ')
 
+def _handle_missing(line, key):
+    """Handles missing data in the file"""
+    try:
+        return line[key]
+    except KeyError:
+        return ''
+
 def _tsv_to_list(table_file, has_header=False, delimiter='\t', pick_columns=None):
     """Parse *.tsv file into list."""
     table_data = []
@@ -54,7 +64,7 @@ def _tsv_to_list(table_file, has_header=False, delimiter='\t', pick_columns=None
             if pick_columns:
                 # Select only specific columns and order them as in pick_columns:
                 temp_line_content = {i: col for i, col in enumerate(line_content)}
-                line_content = [temp_line_content[i] for i in pick_indexes]
+                line_content = [_handle_missing(temp_line_content, i) for i in pick_indexes]
             table_data.append(line_content)
     return table_data, header
 
@@ -93,7 +103,7 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_
         if long_columns:
             for col_index in long_columns:
                 # If hyperlink line, don't do a thing. Otherwise, insert spaces, so that wrapping can happen:
-                new_val = line[col_index] if '\href' in line[col_index] else cut_to_pieces(line[col_index], 8)
+                new_val = line[col_index] if ('\href' in line[col_index] or '_' in line[col_index]) else cut_to_pieces(line[col_index], 8)
                 line[col_index] = '\\multicolumn{{1}}{{m{{2.3cm}}}}{{{}}}'.format(new_val)
         if wide_columns:
             for col_index in wide_columns:
@@ -179,6 +189,22 @@ def produce_warning(coverage, mean_20):
     else:
         return ' '
 
+def make_heatmap(samples, variant_dict, fig_name):
+    """Creates a heatmap of Samples x Variants."""
+    #Prepare data: make sample and variant list and NumPy array of AF.
+    variants = list(variant_dict.keys())
+    data = np.empty((len(variants),len(samples),))
+    data[:] = np.NAN
+    for k, v in variant_dict.items():
+        for item in v:
+            sample_index = samples.index(item[0])
+            variant_index = variants.index(k)
+            data[variant_index, sample_index] = item[1]
+
+    seaborn.heatmap(data, xticklabels=samples, yticklabels=variants, cmap=plt.cm.Blues)
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -237,7 +263,7 @@ if __name__ == '__main__':
         gatkhc_variants = {}
         lf_variants = {}
 
-        header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID']
+        header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID', 'EFF[*].AA']
 
         for i in indexlist:
             #GATKHC:
@@ -249,22 +275,22 @@ if __name__ == '__main__':
             vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
 
             # Insert space between SNP ID's and create hypelinks:
-            vcf_table_1 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_1]
+            vcf_table_1 = [line[:-2] + [' '.join(map(snp_href, line[-2].split(';')))] + [' '.join(line[-1].split(','))] for line in vcf_table_1]
 
             #Create dict of shared variants
             for line in vcf_table_1:
-                variant = line[-2]+'_chr'+line[0]+'_'+line[1]
+                variant = line[-3]+'_chr'+line[0]+'_'+line[1]
                 if variant in gatkhc_variants.keys():
                     gatkhc_variants[variant].append([args.sample[i], line[4]])
                 else: gatkhc_variants[variant] = [[args.sample[i], line[4]]]
 
             #Create gene hypelinks:
-            vcf_table_1 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_1]
+            vcf_table_1 = [line[:-3] + [gene_href(line[-3])] + line[-2:] for line in vcf_table_1]
 
             #Set different table counting (Na):
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}a}'
             #Add table text:
-            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -1])
+            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -2, -1])
             table_text += '{\n\\addtocounter{table}{-1}}'
             table_text += '\n\\newpage\n'
 
@@ -277,21 +303,21 @@ if __name__ == '__main__':
             vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
 
             # Insert space between SNP ID's and create hypelinks:
-            vcf_table_2 = [line[:-1] + [' '.join(map(snp_href, line[-1].split(';')))] for line in vcf_table_2]
+            vcf_table_2 = [line[:-2] + [' '.join(map(snp_href, line[-2].split(';')))] + [' '.join(line[-1].split(','))] for line in vcf_table_2]
 
             #Create dict of shared variants
             for line in vcf_table_2:
-                variant = line[-2]+'_chr'+line[0]+'_'+line[1]
+                variant = line[-3]+'_chr'+line[0]+'_'+line[1]
                 if variant in lf_variants.keys():
                     lf_variants[variant].append([args.sample[i], line[4]])
                 else: lf_variants[variant] = [[args.sample[i], line[4]]]
 
             # Create gene hypelinks:
-            vcf_table_2 = [line[:-2] + [gene_href(line[-2])] + [line[-1]] for line in vcf_table_2]
+            vcf_table_2 = [line[:-3] + [gene_href(line[-3])] + line[-2:] for line in vcf_table_2]
 
             #Set different table counting (Nb)
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}b}'
-            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -1])
+            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -2, -1])
             table_text += '\n\\newpage\n'
         #Set table counter back to normal (N) for further tables
         table_text += '\\renewcommand{\\thetable}{\\arabic{table}}'
