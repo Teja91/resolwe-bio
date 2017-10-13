@@ -80,7 +80,8 @@
       re-checkrc
 
       cut -f 1-11 annoFields.vcf > temp1
-      awk '{ for(i=1;i<=NF;i++) { if($i~/p\./){printf "%s\t", $i} } printf "\n"}' OFS="\t" annoFields.vcf  > temp2
+      echo "EFF[*].AA" > temp2
+      awk 'FNR>1 { for(i=1;i<=NF;i++) { if($i~/p\./){printf "%s,", $i} } printf "\n"}' OFS="\t" annoFields.vcf  >> temp2
       paste temp1 temp2 > "${VAR_NAME}.finalvars.txt"
 
       mv snpEff_genes.txt "${VAR_NAME}_snpEff_genes.txt"
