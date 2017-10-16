@@ -57,7 +57,7 @@
       re-checkrc
 
       # non-merged target BED from master
-      awk '{print $1,$2,$3,$4}' OFS="\t" "${NAME}.txt" | sort -k1,1n -k2,2n > "${NAME}_nonmerged_targets.bed"
+      awk '{print $1,$2,$3,$4}' OFS="\t" "${NAME}.txt" | sort -k1,1 -k2,2n > "${NAME}_nonmerged_targets.bed"
       re-progress 0.2
 
       # merged target BED
