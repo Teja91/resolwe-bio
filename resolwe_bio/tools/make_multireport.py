@@ -77,7 +77,7 @@ def cut_to_pieces(string, piece_size):
     pieces.append(string)
     return ' '.join(pieces)
 
-def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_columns=False):
+def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_columns=False, uncut_columns=[]):
     """Make a TeX table from python list."""
     lines = []
     column_alingnment = ['l' for h in header]
@@ -102,8 +102,8 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_
     for line in data:
         if long_columns:
             for col_index in long_columns:
-                # If hyperlink line, don't do a thing. Otherwise, insert spaces, so that wrapping can happen:
-                new_val = line[col_index] if ('\href' in line[col_index] or '_' in line[col_index]) else cut_to_pieces(line[col_index], 8)
+                #Insert spaces, so that wrapping can happen, for columns without hyperlinks or other specified uncut columns
+                new_val = line[col_index] if ('\href' in line[col_index] or col_index in uncut_columns) else cut_to_pieces(line[col_index], 8)
                 line[col_index] = '\\multicolumn{{1}}{{m{{2.3cm}}}}{{{}}}'.format(new_val)
         if wide_columns:
             for col_index in wide_columns:
@@ -290,7 +290,7 @@ if __name__ == '__main__':
             #Set different table counting (Na):
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}a}'
             #Add table text:
-            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -2, -1])
+            table_text += list_to_tex_table(vcf_table_1, header=common_columns_1, caption=caption, long_columns=[2, 3, -2, -1], uncut_columns=[-1])
             table_text += '{\n\\addtocounter{table}{-1}}'
             table_text += '\n\\newpage\n'
 
@@ -317,7 +317,7 @@ if __name__ == '__main__':
 
             #Set different table counting (Nb)
             table_text += '\\renewcommand{\\thetable}{\\arabic{table}b}'
-            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -2, -1])
+            table_text += list_to_tex_table(vcf_table_2, header=common_columns_2, caption=caption, long_columns=[2, 3, -2, -1], uncut_columns=[-1])
             table_text += '\n\\newpage\n'
         #Set table counter back to normal (N) for further tables
         table_text += '\\renewcommand{\\thetable}{\\arabic{table}}'
