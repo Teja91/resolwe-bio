@@ -5,7 +5,9 @@ import subprocess
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn
+
+from bokeh.plotting import figure, show, output_file
+from bokeh.models import HoverTool, ColumnDataSource, LinearColorMapper
 
 DECIMALS = 2
 
@@ -109,7 +111,6 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_
             for col_index in wide_columns:
                 line[col_index] = '\\multicolumn{{1}}{{m{{18cm}}}}{{{}}}'.format(line[col_index])
 
-
         lines.append(' & '.join(line) + ' \\\\')
 
     lines.append('\\end{longtable}')
@@ -192,18 +193,66 @@ def produce_warning(coverage, mean_20):
 def make_heatmap(samples, variant_dict, fig_name):
     """Creates a heatmap of Samples x Variants."""
     #Prepare data: make sample and variant list and NumPy array of AF.
-    variants = list(variant_dict.keys())
-    data = np.empty((len(variants),len(samples),))
-    data[:] = np.NAN
+    x_names = sorted(list(variant_dict.keys()))
+    y_names = sorted(samples)
+    
+    data = np.zeros((len(x_names), len(y_names),),)
+
     for k, v in variant_dict.items():
         for item in v:
-            sample_index = samples.index(item[0])
-            variant_index = variants.index(k)
-            data[variant_index, sample_index] = item[1]
+            variant_index = x_names.index(k)
+            sample_index = y_names.index(item[0])
+            data[variant_index, sample_index] = round(float(item[1]), 3)
 
-    seaborn.heatmap(data, xticklabels=samples, yticklabels=variants, cmap=plt.cm.Blues)
-    plt.tight_layout()
-    plt.show()
+    #Make data into form suitable for bokeh
+
+    x_flat = []
+    y_flat = []
+    data_flat = []
+
+    for i, var in enumerate(x_names):
+        for j, sam in enumerate(y_names):
+            x_flat.append(var)
+            y_flat.append(sam)
+            data_flat.append(data[i, j])
+
+    #Define color palette
+
+    colors = ['#084594', '#2171b5', '#4292c6', '#6baed6', '#9ecae1', '#c6dbef', '#deebf7', '#f7fbff']
+    mapper = LinearColorMapper(palette=colors, low=0, high=5)
+
+    #Plot the heatmap and save it
+
+    source = ColumnDataSource(data=dict(
+        xname=x_flat,
+        yname=y_flat,
+        data_flat=data_flat,
+        ))
+
+    p = figure(title="Shared {} across samples".format(fig_name),
+               x_axis_location="above", tools="hover,save,box_zoom,wheel_zoom,reset",
+               x_range=x_names, y_range=y_names)
+
+    p.grid.grid_line_color = None
+    p.axis.axis_line_color = None
+    p.axis.major_tick_line_color = None
+    p.axis.major_label_text_font_size = "5pt"
+    p.axis.major_label_standoff = 0
+    p.xaxis.major_label_orientation = None
+    p.xaxis.major_label_orientation = np.pi/3
+
+    p.rect('xname', 'yname', 1, 1, source=source,
+           alpha='data_flat', fill_color={'field': 'data_flat', 'transform': mapper},
+           line_color=None,
+           hover_line_color='black')
+
+    p.select_one(HoverTool).tooltips = [
+        ('Sample', '@yname'),
+        ('Variant', '@xname'),
+        ('Allele Frequency', '@data_flat'),
+    ]
+
+    output_file("{}.html".format(fig_name.replace(" ", "")), title=fig_name)
 
 
 if __name__ == '__main__':
@@ -228,8 +277,10 @@ if __name__ == '__main__':
 
         #make QC information table
         qc_header = ['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads',
-                     'Aligned \\linebreak bases', 'Mean \\linebreak coverage', 'Threshold coverage',
-                     'Coverage uniformity', 'No. of amplicons', 'Amplicons with 100\\% coverage']
+                     'Aligned \\linebreak bases\\footnote{on target}', 'Mean \\linebreak coverage',
+                     'Threshold coverage\\footnote{20\\% of mean}',
+                     'Coverage uniformity\\footnote{\\% bases covered 20\\% above mean}',
+                     'No. of amplicons', 'Amplicons with 100\\% coverage']
         lines = []
         for i in indexlist:
             pct_aligned_reads = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_PF_UQ_READS_ALIGNED']) * 100, DECIMALS)))
@@ -299,7 +350,7 @@ if __name__ == '__main__':
 
             # Escape user inputs:
             common_columns_2 = [_escape_latex(name) for name in common_columns_2]
-            caption = _escape_latex('Lofreq variant calls, sample '+args.sample[i])
+            caption = _escape_latex('Lowfreq variant calls, sample '+args.sample[i])
             vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
 
             # Insert space between SNP ID's and create hypelinks:
@@ -352,6 +403,10 @@ if __name__ == '__main__':
         template = template.replace('{#LF_SHARED#}', lf_shared)
 
         template = template.replace('{#VCF_TABLES#}', table_text)
+
+        #Crate heatmaps
+        make_heatmap(args.sample, gatkhc_variants, 'GATKHC variants')
+        make_heatmap(args.sample, lf_variants, 'Lowfreq variants')
 
         # Write template to 'report.tex'
         template_out.write(template)
