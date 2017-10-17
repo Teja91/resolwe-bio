@@ -118,10 +118,11 @@ QUAL & a phred-scaled quality score for the assertion made in ALT. i.e. -10log10
 DP & filtered read depth\\
 AF & allele frequency\\
 FS & FisherStrand (Phred-scaled p-value using Fisher's Exact Test to detect strand bias (the variation being seen on only the forward or only the reverse strand) in the reads.  More bias is indicative of false positive calls. Be wary of SNP with FS > 60.0 and an indel with FS > 200.0).\\
-AD & Allele Depth\\
+GEN[0].AD & Allele Depth\\
 EFF[*].GENE & Affected gene ("EFF" comes from "Effect Fields" from the SNPeff algorithm)\\
 SB & Strand Bias\\
 DP4 & Number of 1) forward ref alleles; 2) reverse ref; 3) forward non-ref; 4) reverse non-ref alleles, used in variant calling. Sum can be smaller than DP because low-quality bases are not counted.\\
+EFF[*].AA & Amino Acid change\\
 \end{longtable}
 {
 \addtocounter{table}{-1}}}

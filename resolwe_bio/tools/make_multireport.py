@@ -6,6 +6,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 
+from bokeh import palettes
 from bokeh.plotting import figure, show, output_file
 from bokeh.models import HoverTool, ColumnDataSource, LinearColorMapper
 
@@ -218,8 +219,8 @@ def make_heatmap(samples, variant_dict, fig_name):
 
     #Define color palette
 
-    colors = ['#084594', '#2171b5', '#4292c6', '#6baed6', '#9ecae1', '#c6dbef', '#deebf7', '#f7fbff']
-    mapper = LinearColorMapper(palette=colors, low=0, high=5)
+    palette = palettes.Blues[9]
+    mapper = LinearColorMapper(palette=palette, low=0, high=3)
 
     #Plot the heatmap and save it
 
@@ -229,9 +230,13 @@ def make_heatmap(samples, variant_dict, fig_name):
         data_flat=data_flat,
         ))
 
+    width = min(len(x_names)*100, 1100)
+    height = min(len(y_names)*100, 580)
+
     p = figure(title="Shared {} across samples".format(fig_name),
-               x_axis_location="above", tools="hover,save,box_zoom,wheel_zoom,reset",
-               x_range=x_names, y_range=y_names)
+               x_axis_location="above", tools="hover,save,pan,box_zoom,wheel_zoom,reset",
+               plot_width=width, plot_height=height,
+               x_range=x_names, y_range=y_names, toolbar_location='below')
 
     p.grid.grid_line_color = None
     p.axis.axis_line_color = None
@@ -239,7 +244,8 @@ def make_heatmap(samples, variant_dict, fig_name):
     p.axis.major_label_text_font_size = "5pt"
     p.axis.major_label_standoff = 0
     p.xaxis.major_label_orientation = None
-    p.xaxis.major_label_orientation = np.pi/3
+    p.xaxis.major_label_orientation = np.pi/2
+
 
     p.rect('xname', 'yname', 1, 1, source=source,
            alpha='data_flat', fill_color={'field': 'data_flat', 'transform': mapper},
@@ -254,7 +260,8 @@ def make_heatmap(samples, variant_dict, fig_name):
 
     output_file("{}.html".format(fig_name.replace(" ", "")), title=fig_name)
 
-
+    show(p)
+    
 if __name__ == '__main__':
     args = parser.parse_args()
 
