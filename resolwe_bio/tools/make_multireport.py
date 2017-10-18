@@ -4,6 +4,7 @@
 import subprocess
 import argparse
 import numpy as np
+import re
 
 from bokeh import palettes
 from bokeh.plotting import figure, save, output_file
@@ -193,7 +194,7 @@ def samplelist_to_string(samplelist):
 def produce_warning(coverage, mean_20):
     """Produces a string with warning if coverage is less than 20% of mean."""
     if coverage < mean_20:
-        return '\\textcolor{red}{YES}'
+        return 'YES'
     else:
         return ' '
 
@@ -255,6 +256,16 @@ def make_heatmap(samples, variant_dict, fig_name):
     output_file("{}.html".format(fig_name.replace(" ", "")), title=fig_name)
     save(p)
 
+def aa_change(aa_list):
+    if aa_list:
+        aa = aa_list[0]
+        match_obj = re.match( r'p\.([A-Za-z]*)[0-9]*([A-Za-z]*)', aa)
+        if match_obj and match_obj.group(1)==match_obj.group(2):
+            return 'Synon'
+        else:
+            return aa
+    else:
+        return aa_list
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -319,13 +330,14 @@ if __name__ == '__main__':
 
         header = ['CHROM', 'POS', 'REF', 'ALT', 'AF', 'DP', 'DP4', 'GEN[0].AD', 'SB', 'FS', 'EFF[*].GENE', 'ID',
                   'EFF[*].AA']
+        header_glossary = {'GEN[0].AD': 'AD', 'EFF[*].GENE': 'GENE', 'EFF[*].AA': 'AA'}
 
         for i in indexlist:
             # GATKHC:
             vcf_table_1, common_columns_1 = _tsv_to_list(args.vcfgatkhc[i], has_header=True, pick_columns=header)
 
-            # Escape user inputs:
-            common_columns_1 = [_escape_latex(name) for name in common_columns_1]
+            # Escape user inputs and change header:
+            common_columns_1 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_1]
             caption = _escape_latex('GATK HaplotypeCaller variant calls, sample ' + args.sample[i])
             vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
 
@@ -333,7 +345,7 @@ if __name__ == '__main__':
             vcf_table_1 = [
                 line[:-2] +
                 [' '.join(map(snp_href, line[-2].split(';')))] +
-                [' '.join(line[-1].split(','))]
+                [aa_change(line[-1].split(','))]
                 for line in vcf_table_1
             ]
 
@@ -359,8 +371,8 @@ if __name__ == '__main__':
             # LF:
             vcf_table_2, common_columns_2 = _tsv_to_list(args.vcflf[i], has_header=True, pick_columns=header)
 
-            # Escape user inputs:
-            common_columns_2 = [_escape_latex(name) for name in common_columns_2]
+            # Escape user inputs and change header:
+            common_columns_2 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_2]
             caption = _escape_latex('Lowfreq variant calls, sample ' + args.sample[i])
             vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
 
@@ -368,7 +380,7 @@ if __name__ == '__main__':
             vcf_table_2 = [
                 line[:-2] +
                 [' '.join(map(snp_href, line[-2].split(';')))] +
-                [' '.join(line[-1].split(','))]
+                [aa_change(line[-1].split(','))]
                 for line in vcf_table_2
             ]
 
@@ -396,10 +408,10 @@ if __name__ == '__main__':
         data_gatkhc = []
 
         # Sort data by number of samples sharing the variant
-        gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: len(gatkhc_variants[k]), reverse=True)
+        gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: (-len(gatkhc_variants[k]),k))
         for k in gatkhc_sorted:
             data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(gatkhc_variants[k]))])
-            caption = 'Shared GATK HaplotypeCaller variants across all samples'
+            caption = 'Shared GATK HaplotypeCaller variants'
         # Set table counting and add table text
         gatkhc_shared = '\\renewcommand{\\thetable}{\\arabic{table}a}\n'
         gatkhc_shared += list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
@@ -408,10 +420,10 @@ if __name__ == '__main__':
         data_lf = []
 
         # ort data by number of samples sharing the variant
-        lf_sorted = sorted(lf_variants, key=lambda k: len(lf_variants[k]), reverse=True)
+        lf_sorted = sorted(lf_variants, key=lambda k: (-len(lf_variants[k]), k))
         for k in lf_sorted:
             data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(lf_variants[k]))])
-            caption = 'Shared Lowfreq variants across all samples'
+            caption = 'Shared Lowfreq variants'
         # Set table counting and add table text
         lf_shared = '\n\\renewcommand{\\thetable}{\\arabic{table}b}'
         lf_shared += list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])

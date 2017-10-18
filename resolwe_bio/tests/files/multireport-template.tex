@@ -25,7 +25,7 @@
 % tables spanning multiple pages
 \usepackage{longtable}
 \usepackage{array}
-\newcolumntype{L}{>{\centering\arraybackslash}m{2.3cm}}
+\newcolumntype{L}{>{\arraybackslash}m{2.3cm}}
 \newcolumntype{W}{>{\arraybackslash}m{18cm}}
 
 \usepackage{booktabs}
@@ -75,6 +75,15 @@
 \titleformat{\section}
   {\normalfont \fontsize{16pt}{16pt}\selectfont}{\thesection}{1em}{}
 
+%footnote marker color
+\makeatletter
+\renewcommand\@makefnmark{\hbox{\@textsuperscript{\normalfont\color{white}\@thefnmark}}}
+\renewcommand\@makefntext[1]{%
+	\parindent 1em\noindent
+	\hb@xt@1.8em{%
+		\hss\@textsuperscript{\normalfont\@thefnmark}}#1}
+\makeatother
+
 \begin{document}
 
 \noindent
@@ -94,7 +103,7 @@
 {{#BAD_AMPLICON_TABLE#}}
 
 \newpage
-\section{Shared variants across all samples}
+\section{Shared variants}
 
 {{#GATKHC_SHARED#}}
 
@@ -118,11 +127,11 @@ QUAL & a phred-scaled quality score for the assertion made in ALT. i.e. -10log10
 DP & filtered read depth\\
 AF & allele frequency\\
 FS & FisherStrand (Phred-scaled p-value using Fisher's Exact Test to detect strand bias (the variation being seen on only the forward or only the reverse strand) in the reads.  More bias is indicative of false positive calls. Be wary of SNP with FS > 60.0 and an indel with FS > 200.0).\\
-GEN[0].AD & Allele Depth\\
-EFF[*].GENE & Affected gene ("EFF" comes from "Effect Fields" from the SNPeff algorithm)\\
+AD & Allele Depth\\
+GENE & Affected gene\\
 SB & Strand Bias\\
 DP4 & Number of 1) forward ref alleles; 2) reverse ref; 3) forward non-ref; 4) reverse non-ref alleles, used in variant calling. Sum can be smaller than DP because low-quality bases are not counted.\\
-EFF[*].AA & Amino Acid change\\
+AA & Amino Acid change\\
 \end{longtable}
 {
 \addtocounter{table}{-1}}}
