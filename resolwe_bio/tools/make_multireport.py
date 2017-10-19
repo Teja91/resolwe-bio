@@ -203,7 +203,7 @@ def make_heatmap(samples, variant_dict, fig_name):
     """Creates a heatmap of Samples x Variants."""
     # Prepare data: make sample and variant list and NumPy array of AF.
     x_names = sorted(list(variant_dict.keys()))
-    y_names = sorted(samples)
+    y_names = sorted([x.strip('.bam') for x in samples])
     data = np.zeros((len(x_names), len(y_names),),)
     for k, v in variant_dict.items():
         for item in v:
@@ -257,10 +257,11 @@ def make_heatmap(samples, variant_dict, fig_name):
     save(p)
 
 def aa_change(aa_list):
+    """Creates Amino Acid Change information."""
     if aa_list:
         aa = aa_list[0]
         match_obj = re.match( r'p\.([A-Za-z]*)[0-9]*([A-Za-z]*)', aa)
-        if match_obj and match_obj.group(1)==match_obj.group(2):
+        if match_obj and match_obj.group(1) == match_obj.group(2):
             return 'Synon'
         else:
             return aa
@@ -291,16 +292,16 @@ if __name__ == '__main__':
         # make QC information table
         qc_header = ['Sample name', 'Total \\linebreak reads', 'Aligned \\linebreak reads',
                      'Aligned \\linebreak bases\\footnote{on target}', 'Mean \\linebreak coverage',
-                     'Threshold coverage\\footnote{20\\% of mean}',
-                     'Coverage uniformity\\footnote{\\% bases covered 20\\% above mean}',
-                     'No. of amplicons', 'Amplicons with 100\\% coverage']
+                     'Threshold \\linebreak coverage\\footnote{20\\% of mean}',
+                     'Coverage \\linebreak uniformity\\footnote{\\% bases covered 20\\% above mean}',
+                     'No. of \\linebreak amplicons', 'Amplicons with 100\\% coverage']
         lines = []
         for i in indexlist:
 
             pct_aligned_reads = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_PF_UQ_READS_ALIGNED']) * 100, DECIMALS)))
             pct_amplified_bases = str('{0:g}'.format(round(float(d[args.sample[i]]['PCT_AMPLIFIED_BASES']) * 100, DECIMALS)))
 
-            lines.append([_escape_latex(args.sample[i]), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads+'\\%',
+            lines.append([_escape_latex(args.sample[i]).strip('.bam'), d[args.sample[i]]['TOTAL_READS'], pct_aligned_reads+'\\%',
                           pct_amplified_bases+'\\%', str(round(d[args.sample[i]]['mean_coverage'], DECIMALS)),
                           str(round(d[args.sample[i]]['mean20'], DECIMALS)), str(round(d[args.sample[i]]['cov_unif'], DECIMALS))+'\\%',
                           str(len(d[args.sample[i]]['cov_list'])), str(d[args.sample[i]]['covered_amplicons'])])
@@ -314,7 +315,7 @@ if __name__ == '__main__':
         not_covered = []
         for i in indexlist:
             amp_cov = parse_mean_covd(args.meancov[i])
-            not_covered = not_covered+[(_escape_latex(args.sample[i]), _escape_latex(line[4]),
+            not_covered = not_covered+[(_escape_latex(args.sample[i]).strip('.bam'), _escape_latex(line[4]),
                                         '{:.1f}'.format(float(line[8]) * 100), produce_warning(float(amp_cov[line[4]]), d[args.sample[i]]['mean20']))
                                        for line in d[args.sample[i]]['cov_list'] if float(line[8]) < 1]
         if not_covered == []:
@@ -338,7 +339,7 @@ if __name__ == '__main__':
 
             # Escape user inputs and change header:
             common_columns_1 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_1]
-            caption = _escape_latex('GATK HaplotypeCaller variant calls, sample ' + args.sample[i])
+            caption = _escape_latex('GATK HaplotypeCaller variant calls, sample ' + args.sample[i].strip('.bam'))
             vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
 
             # Insert space between SNP ID's and create hypelinks:
@@ -353,9 +354,9 @@ if __name__ == '__main__':
             for line in vcf_table_1:
                 variant = line[-3] + '_chr' + line[0] + '_' + line[1]
                 if variant in gatkhc_variants.keys():
-                    gatkhc_variants[variant].append([args.sample[i], line[4]])
+                    gatkhc_variants[variant].append([args.sample[i].strip('.bam'), line[4]])
                 else:
-                    gatkhc_variants[variant] = [[args.sample[i], line[4]]]
+                    gatkhc_variants[variant] = [[args.sample[i].strip('.bam'), line[4]]]
 
             # Create gene hypelinks:
             vcf_table_1 = [line[:-3] + [gene_href(line[-3])] + line[-2:] for line in vcf_table_1]
@@ -373,7 +374,7 @@ if __name__ == '__main__':
 
             # Escape user inputs and change header:
             common_columns_2 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_2]
-            caption = _escape_latex('Lowfreq variant calls, sample ' + args.sample[i])
+            caption = _escape_latex('Lowfreq variant calls, sample ' + args.sample[i].strip('.bam'))
             vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
 
             # Insert space between SNP ID's and create hypelinks:
@@ -388,9 +389,9 @@ if __name__ == '__main__':
             for line in vcf_table_2:
                 variant = line[-3] + '_chr' + line[0] + '_' + line[1]
                 if variant in lf_variants.keys():
-                    lf_variants[variant].append([args.sample[i], line[4]])
+                    lf_variants[variant].append([args.sample[i].strip('.bam'), line[4]])
                 else:
-                    lf_variants[variant] = [[args.sample[i], line[4]]]
+                    lf_variants[variant] = [[args.sample[i].strip('.bam'), line[4]]]
 
             # Create gene hypelinks:
             vcf_table_2 = [line[:-3] + [gene_href(line[-3])] + line[-2:] for line in vcf_table_2]
