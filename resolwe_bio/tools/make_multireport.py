@@ -3,12 +3,14 @@
 
 import subprocess
 import argparse
-import numpy as np
 import re
+import numpy as np
+import pandas as pd
+
 
 from bokeh import palettes
 from bokeh.plotting import figure, save, output_file
-from bokeh.models import HoverTool, ColumnDataSource, LinearColorMapper
+from bokeh.models import HoverTool, ColumnDataSource, LogColorMapper
 
 DECIMALS = 2
 
@@ -22,6 +24,7 @@ parser.add_argument('--vcflf', help="File with VCF Lofreq data.", nargs='+')
 parser.add_argument('--meancov', help="Mean amplicon coverage.", nargs='+')
 parser.add_argument('--template', help="Report template file.")
 parser.add_argument('--logo', help="Logo.")
+parser.add_argument('--afthreshold', help="Allele Frequency lower threshold.")
 
 
 def _escape_latex(string):
@@ -96,6 +99,7 @@ def list_to_tex_table(data, header=None, caption=None, long_columns=False, wide_
         lines.append('\\rowcolor{darkblue1}')
         lines.append('\\leavevmode\\color{white}\\textbf{' +
                      '}& \\leavevmode\\color{white}\\textbf{'.join(header) + '} \\\\')
+        lines.append('\\endhead')
 
     for line in data:
         if long_columns:
@@ -213,17 +217,15 @@ def make_heatmap(samples, variant_dict, fig_name):
     width = min(len(x_names) * 100, 1100)
     height = min(len(y_names) * 100, 580)
 
-    # Make data into form suitable for bokeh
-    x_flat = []
-    y_flat = []
-    data_flat = []
-    for i, var in enumerate(x_names):
-        for j, sam in enumerate(y_names):
-            x_flat.append(var)
-            y_flat.append(sam)
-            data_flat.append(data[i, j])
-    source = ColumnDataSource(data=dict(xname=x_flat, yname=y_flat, data_flat=data_flat))
+    #Create DataFrame and ColumnDataSource
 
+    df1 = pd.DataFrame(data=data, index=x_names, columns=y_names)
+    df1.index.name = 'Variant'
+    df1.columns.name = 'Sample'
+
+    df = pd.DataFrame(df1.stack(), columns=['af']).reset_index()
+    source = ColumnDataSource(df)
+  
     p = figure(
         title="Shared {} across samples".format(fig_name),
         x_axis_location="above",
@@ -242,15 +244,15 @@ def make_heatmap(samples, variant_dict, fig_name):
     p.xaxis.major_label_orientation = None
     p.xaxis.major_label_orientation = np.pi / 2
 
-    palette = palettes.Blues[9]
-    mapper = LinearColorMapper(palette=palette, low=0, high=3)
-    p.rect('xname', 'yname', 1, 1, source=source, alpha='data_flat',
-           fill_color={'field': 'data_flat', 'transform': mapper}, line_color=None, hover_line_color='black')
+    palette = list(reversed(palettes.YlGnBu[9]))
+    mapper = LogColorMapper(palette=palette, low=0, high=1)
+    p.rect('Variant', 'Sample', 1, 1, source=source,
+           fill_color={'field': 'af', 'transform': mapper}, line_color=None, hover_line_color='black')
 
     p.select_one(HoverTool).tooltips = [
-        ('Sample', '@yname'),
-        ('Variant', '@xname'),
-        ('Allele Frequency', '@data_flat'),
+        ('Sample', '@Sample'),
+        ('Variant', '@Variant'),
+        ('Allele Frequency', '@af'),
     ]
 
     output_file("{}.html".format(fig_name.replace(" ", "")), title=fig_name)
@@ -278,6 +280,7 @@ if __name__ == '__main__':
     with open(args.template, 'r') as template_in, open('multireport.tex', 'wt') as template_out:
         template = template_in.read()
         template = template.replace('{#LOGO#}', args.logo)
+        template = template.replace('{#AF_THRESHOLD#}', str('{0:g}'.format(round(float(args.afthreshold) * 100, DECIMALS))))
 
         # create dict with metrics & coverage data
         d = {}
@@ -340,7 +343,8 @@ if __name__ == '__main__':
             # Escape user inputs and change header:
             common_columns_1 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_1]
             caption = _escape_latex('GATK HaplotypeCaller variant calls, sample ' + args.sample[i].strip('.bam'))
-            vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1]
+            vcf_table_1 = [[_escape_latex(value) for value in line] for line in vcf_table_1 if
+                           float(line[4]) >= float(args.afthreshold)]
 
             # Insert space between SNP ID's and create hypelinks:
             vcf_table_1 = [
@@ -375,7 +379,8 @@ if __name__ == '__main__':
             # Escape user inputs and change header:
             common_columns_2 = [header_glossary[x] if (x in header_glossary.keys()) else x for x in common_columns_2]
             caption = _escape_latex('Lowfreq variant calls, sample ' + args.sample[i].strip('.bam'))
-            vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2]
+            vcf_table_2 = [[_escape_latex(value) for value in line] for line in vcf_table_2 if
+                           float(line[4]) >= float(args.afthreshold)]
 
             # Insert space between SNP ID's and create hypelinks:
             vcf_table_2 = [
@@ -407,24 +412,32 @@ if __name__ == '__main__':
         # Create shared variants tables
         header_shared = ['Variant ID', 'Samples sharing this variant (allele frequence)']
         data_gatkhc = []
+        gatkhc_shared_variants = {} #dictionary with variants, present in two or more samples
 
         # Sort data by number of samples sharing the variant
-        gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: (-len(gatkhc_variants[k]),k))
+        gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: (-len(gatkhc_variants[k]), k))
         for k in gatkhc_sorted:
-            data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(gatkhc_variants[k]))])
-            caption = 'Shared GATK HaplotypeCaller variants'
+            if len(gatkhc_variants[k]) > 1:
+                data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(gatkhc_variants[k]))])
+                gatkhc_shared_variants[k] = gatkhc_variants[k]
+
+        caption = 'Shared GATK HaplotypeCaller variants'
         # Set table counting and add table text
         gatkhc_shared = '\\renewcommand{\\thetable}{\\arabic{table}a}\n'
         gatkhc_shared += list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
         gatkhc_shared += '{\n\\addtocounter{table}{-1}}'
 
         data_lf = []
+        lf_shared_variants = {} #dictionary with variants, present in two or more samples
 
         # ort data by number of samples sharing the variant
         lf_sorted = sorted(lf_variants, key=lambda k: (-len(lf_variants[k]), k))
         for k in lf_sorted:
-            data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(lf_variants[k]))])
-            caption = 'Shared Lowfreq variants'
+            if len(lf_variants[k]) > 1:
+                data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(lf_variants[k]))])
+                lf_shared_variants[k] = lf_variants[k]
+
+        caption = 'Shared Lowfreq variants'
         # Set table counting and add table text
         lf_shared = '\n\\renewcommand{\\thetable}{\\arabic{table}b}'
         lf_shared += list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])
@@ -436,8 +449,8 @@ if __name__ == '__main__':
         template = template.replace('{#VCF_TABLES#}', table_text)
 
         # Crate heatmaps
-        make_heatmap(args.sample, gatkhc_variants, 'GATKHC variants')
-        make_heatmap(args.sample, lf_variants, 'Lowfreq variants')
+        make_heatmap(args.sample, gatkhc_shared_variants, 'GATKHC variants')
+        make_heatmap(args.sample, lf_shared_variants, 'Lowfreq variants')
 
         # Write template to 'report.tex'
         template_out.write(template)
