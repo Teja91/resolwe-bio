@@ -43,6 +43,7 @@
 %colors
 \usepackage[table]{xcolor}
 \definecolor{gray1}{HTML}{EDEDED}
+\definecolor{gray2}{HTML}{EAEAEA}
 \definecolor{lightblue1}{HTML}{E0F1F5}
 \definecolor{darkblue1}{HTML}{2B8196}
 \definecolor{hyperlinkblue}{HTML}{1F759B}
@@ -115,8 +116,9 @@
 
 {\captionof{table}{Legend}
 \noindent
-\begin{longtable}[l]{l W}
-\rowcolor{lightblue1}
+\rowcolors{2}{gray2}{white}
+\begin{oldlongtable}[l]{l W}
+\rowcolor{gray2}
 CHROM & chromosome\\
 POS & position\\
 ID & variant identity\\
@@ -131,7 +133,7 @@ GENE & Affected gene\\
 SB & Strand Bias\\
 DP4 & Number of 1) forward ref alleles; 2) reverse ref; 3) forward non-ref; 4) reverse non-ref alleles, used in variant calling. Sum can be smaller than DP because low-quality bases are not counted.\\
 AA & Amino Acid change\\
-\end{longtable}
+\end{oldlongtable}
 {
 \addtocounter{table}{-1}}}
 
