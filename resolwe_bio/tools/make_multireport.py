@@ -10,7 +10,7 @@ import pandas as pd
 
 from bokeh import palettes
 from bokeh.plotting import figure, save, output_file
-from bokeh.models import HoverTool, ColumnDataSource, LogColorMapper
+from bokeh.models import HoverTool, ColumnDataSource, LogColorMapper, LogTicker, ColorBar, LogTickFormatter
 
 DECIMALS = 2
 
@@ -215,7 +215,7 @@ def make_heatmap(samples, variant_dict, fig_name):
             sample_index = y_names.index(item[0])
             data[variant_index, sample_index] = round(float(item[1]), 3)
     width = min(len(x_names) * 100, 1100)
-    height = min(len(y_names) * 100, 580)
+    height = max(min(len(y_names) * 100, 580),300)
 
     #Create DataFrame and ColumnDataSource
 
@@ -245,7 +245,7 @@ def make_heatmap(samples, variant_dict, fig_name):
     p.xaxis.major_label_orientation = np.pi / 2
 
     palette = list(reversed(palettes.YlGnBu[9]))
-    mapper = LogColorMapper(palette=palette, low=0, high=1)
+    mapper = LogColorMapper(palette=palette, low=0.000000001, high=1)
     p.rect('Variant', 'Sample', 1, 1, source=source,
            fill_color={'field': 'af', 'transform': mapper}, line_color=None, hover_line_color='black')
 
@@ -254,6 +254,13 @@ def make_heatmap(samples, variant_dict, fig_name):
         ('Variant', '@Variant'),
         ('Allele Frequency', '@af'),
     ]
+
+    color_bar = ColorBar(color_mapper=mapper, ticker=LogTicker(desired_num_ticks=len(palette)),
+                     formatter=LogTickFormatter(), major_tick_line_color='black',
+                     major_tick_out=5, major_tick_in=0,
+                     label_standoff=10, border_line_color=None, location=(0, 0))
+
+    p.add_layout(color_bar, 'right')
 
     output_file("{}.html".format(fig_name.replace(" ", "")), title=fig_name)
     save(p)
@@ -409,42 +416,23 @@ if __name__ == '__main__':
         # Set table counter back to normal (N) for further tables
         table_text += '\\renewcommand{\\thetable}{\\arabic{table}}'
 
-        # Create shared variants tables
-        header_shared = ['Variant ID', 'Samples sharing this variant (allele frequence)']
-        data_gatkhc = []
+        # Create shared variants data
         gatkhc_shared_variants = {} #dictionary with variants, present in two or more samples
 
         # Sort data by number of samples sharing the variant
         gatkhc_sorted = sorted(gatkhc_variants, key=lambda k: (-len(gatkhc_variants[k]), k))
         for k in gatkhc_sorted:
             if len(gatkhc_variants[k]) > 1:
-                data_gatkhc.append([_escape_latex(k), _escape_latex(samplelist_to_string(gatkhc_variants[k]))])
                 gatkhc_shared_variants[k] = gatkhc_variants[k]
 
-        caption = 'Shared GATK HaplotypeCaller variants'
-        # Set table counting and add table text
-        gatkhc_shared = '\\renewcommand{\\thetable}{\\arabic{table}a}\n'
-        gatkhc_shared += list_to_tex_table(data_gatkhc, header=header_shared, caption=caption, wide_columns=[1])
-        gatkhc_shared += '{\n\\addtocounter{table}{-1}}'
-
-        data_lf = []
         lf_shared_variants = {} #dictionary with variants, present in two or more samples
 
-        # ort data by number of samples sharing the variant
+        #Sort data by number of samples sharing the variant
         lf_sorted = sorted(lf_variants, key=lambda k: (-len(lf_variants[k]), k))
         for k in lf_sorted:
             if len(lf_variants[k]) > 1:
-                data_lf.append([_escape_latex(k), _escape_latex(samplelist_to_string(lf_variants[k]))])
                 lf_shared_variants[k] = lf_variants[k]
 
-        caption = 'Shared Lowfreq variants'
-        # Set table counting and add table text
-        lf_shared = '\n\\renewcommand{\\thetable}{\\arabic{table}b}'
-        lf_shared += list_to_tex_table(data_lf, header=header_shared, caption=caption, wide_columns=[1])
-        gatkhc_shared += '\n\\renewcommand{\\thetable}{\\arabic{table}}'
-
-        template = template.replace('{#GATKHC_SHARED#}', gatkhc_shared)
-        template = template.replace('{#LF_SHARED#}', lf_shared)
 
         template = template.replace('{#VCF_TABLES#}', table_text)
 
