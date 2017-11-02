@@ -4,13 +4,14 @@
 import subprocess
 import argparse
 import re
+import math
 import numpy as np
 import pandas as pd
 
 
 from bokeh import palettes
 from bokeh.plotting import figure, save, output_file
-from bokeh.models import HoverTool, ColumnDataSource, LogColorMapper, LogTicker, ColorBar, LogTickFormatter
+from bokeh.models import HoverTool, ColumnDataSource, ColorBar, BasicTicker, LinearColorMapper, PrintfTickFormatter
 
 DECIMALS = 2
 
@@ -213,7 +214,7 @@ def make_heatmap(samples, variant_dict, fig_name):
         for item in v:
             variant_index = x_names.index(k)
             sample_index = y_names.index(item[0])
-            data[variant_index, sample_index] = round(float(item[1]), 3)
+            data[variant_index, sample_index] = '{0:g}'.format(round(float(item[1]) * 100, DECIMALS))
     width = min(len(x_names) * 100, 1100)
     height = max(min(len(y_names) * 100, 580),300)
 
@@ -245,18 +246,19 @@ def make_heatmap(samples, variant_dict, fig_name):
     p.xaxis.major_label_orientation = np.pi / 2
 
     palette = list(reversed(palettes.YlGnBu[9]))
-    mapper = LogColorMapper(palette=palette, low=0.000000001, high=1)
+    mapper = LinearColorMapper(palette=palette, low=0, high=100)
     p.rect('Variant', 'Sample', 1, 1, source=source,
            fill_color={'field': 'af', 'transform': mapper}, line_color=None, hover_line_color='black')
 
     p.select_one(HoverTool).tooltips = [
         ('Sample', '@Sample'),
         ('Variant', '@Variant'),
-        ('Allele Frequency', '@af'),
+        ('Allele Frequency (%)', '@af'),
     ]
 
-    color_bar = ColorBar(color_mapper=mapper, ticker=LogTicker(desired_num_ticks=len(palette)),
-                     formatter=LogTickFormatter(), major_tick_line_color='black',
+    color_bar = ColorBar(color_mapper=mapper, ticker=BasicTicker(desired_num_ticks=len(palette)),
+                     formatter=PrintfTickFormatter(format="%d%%"),
+                     major_tick_line_color='black',
                      major_tick_out=5, major_tick_in=0,
                      label_standoff=10, border_line_color=None, location=(0, 0))
 
