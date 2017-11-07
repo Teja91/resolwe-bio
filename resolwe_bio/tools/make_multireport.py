@@ -246,7 +246,7 @@ def make_heatmap(samples, variant_dict, fig_name):
     p.xaxis.major_label_orientation = np.pi / 2
 
     palette = list(reversed(palettes.YlGnBu[9]))
-    mapper = LinearColorMapper(palette=palette, low=0, high=100)
+    mapper = LinearColorMapper(palette=palette, low=np.amin(data), high=np.amax(data))
     p.rect('Variant', 'Sample', 1, 1, source=source,
            fill_color={'field': 'af', 'transform': mapper}, line_color=None, hover_line_color='black')
 
@@ -256,11 +256,13 @@ def make_heatmap(samples, variant_dict, fig_name):
         ('Allele Frequency (%)', '@af'),
     ]
 
-    color_bar = ColorBar(color_mapper=mapper, ticker=BasicTicker(desired_num_ticks=len(palette)),
+    color_bar = ColorBar(color_mapper=mapper, ticker=BasicTicker(desired_num_ticks=len(palette)+1),
                      formatter=PrintfTickFormatter(format="%d%%"),
                      major_tick_line_color='black',
                      major_tick_out=5, major_tick_in=0,
-                     label_standoff=10, border_line_color=None, location=(0, 0))
+                     label_standoff=10, border_line_color=None, location=(0, 0),
+                     title='Allele Frequency', title_text_font_size='7pt',
+                     title_standoff=5)
 
     p.add_layout(color_bar, 'right')
 
